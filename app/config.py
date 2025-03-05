@@ -17,6 +17,6 @@ app.register_task(FetchPageTask())
 app.register_task(ParseXmlTask())
 
 app.conf.update(
-    task_always_eager=False,  # Задачи выполняются синхронно
+    task_always_eager=False,  # Задачи выполняются синхронно при True
     result_expires=3600,
 )
