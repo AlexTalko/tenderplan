@@ -1,6 +1,9 @@
 # Используем официальный образ Python
 FROM python:3.9-slim
 
+# Устанавливаем bash
+RUN apt-get update && apt-get install -y bash
+
 # Устанавливаем рабочую директорию
 WORKDIR /app
 
@@ -15,5 +18,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Копируем исходный код
 COPY . .
 
+# Добавляем /app в PYTHONPATH
+ENV PYTHONPATH="${PYTHONPATH}:/app"
+
 # Команда для запуска парсера
-CMD ["python", "app/parser.py"]
+CMD ["bash", "-c", "source /opt/venv/bin/activate && python app/parser.py"]
