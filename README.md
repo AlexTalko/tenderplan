@@ -53,6 +53,7 @@
     ```bash
    pip install -r requirements.txt
    ```
+5. Создайте файл ***.env*** в корне проекта на примере ***.env.sample***
 
 ## Запуск в PyCharm
 1. Откройте проект в PyCharm.
