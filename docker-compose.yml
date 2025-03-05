@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+
+  worker:
+    build: .
+    depends_on:
+      - redis
+    env_file:
+      - .env  # Загружаем переменные окружения из .env
+    command: >
+      sh -c "source /opt/venv/bin/activate &&
+             celery -A app.config worker --loglevel=info"
+
+  parser:
+    build: .
+    depends_on:
+      - redis
+    env_file:
+      - .env  # Загружаем переменные окружения из .env
+    command: >
+      sh -c "source /opt/venv/bin/activate &&
+             python app/parser.py"
