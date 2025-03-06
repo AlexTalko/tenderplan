@@ -34,7 +34,7 @@
 1. Клонируйте репозиторий:
 
    ```bash
-   git clone https://github.com/ваш-репозиторий/tender_parser.git
+   git clone https://github.com/AlexTalko/tenderplan.git
    cd tender_parser
 2. Создайте виртуальное окружение:
     ```bash
