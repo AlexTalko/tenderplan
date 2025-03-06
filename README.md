@@ -35,7 +35,7 @@
 
    ```bash
    git clone https://github.com/AlexTalko/tenderplan.git
-   cd tender_parser
+   cd tenderplan
 2. Создайте виртуальное окружение:
     ```bash
     python -m venv venv
