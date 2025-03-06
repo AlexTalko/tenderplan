@@ -1,5 +1,5 @@
 from celery import Celery
-from .tasks import FetchPageTask, ParseXmlTask
+from app.tasks import FetchPageTask, ParseXmlTask
 from dotenv import load_dotenv
 import os
 
