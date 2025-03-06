@@ -19,10 +19,10 @@ def main():
 
         # Получаем список ссылок на печатные формы тендеров
         links = fetch_task.apply(args=[page_url]).get()
-        logger.info(f"Найдено ссылок: {len(links)}")
+        # logger.info(f"Найдено ссылок: {len(links)}")
 
         if not links:
-            logger.info("Ссылки не найдены. Пропуск страницы.")
+            # logger.info("Ссылки не найдены. Пропуск страницы.")
             continue
 
         for print_form_url in links:
@@ -30,7 +30,8 @@ def main():
             publish_dt = parse_task.apply(args=[print_form_url]).get()
 
             # Выводим результат в формате "ссылка на печатную форму" - "publishDTInEIS"
-            print(f'"{print_form_url}" - "{publish_dt}"')
+            publish_dt = publish_dt if publish_dt is not None else "не указана"
+            print(f'ссылка на печатную форму "{print_form_url}" - дата "{publish_dt}"')
 
 if __name__ == "__main__":
     with app.connection():
