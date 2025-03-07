@@ -91,7 +91,7 @@ class ParseXmlTask(Task):
             logger.debug(f"Содержимое XML: {xml_dict}")  # Логируем содержимое XML для отладки
 
             # Рекурсивно ищем ключ 'publishDTInEIS'
-            publish_dt = find_publish_dt(xml_dict, 'publishDTInEIS')
+            publish_dt = find_publish_dt(xml_dict)
 
             if publish_dt:
                 logger.info(f"Найдено значение publishDTInEIS: {publish_dt}")
