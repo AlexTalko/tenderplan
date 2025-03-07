@@ -1,9 +1,9 @@
-from celery import Task
+from celery import Task, shared_task
 import requests
 from bs4 import BeautifulSoup
 import xmltodict
 import logging
-from celery import shared_task
+from celery import chain
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +14,7 @@ def print_result(publish_dt, print_form_url):
     Callback-функция для вывода результата в консоль.
     """
     logger.info(f'Ссылка на печатную форму "{print_form_url}" - дата "{publish_dt}"')
+    return f'Ссылка на печатную форму "{print_form_url}" - дата "{publish_dt}"'
 
 
 def find_publish_dt(data):
@@ -63,6 +64,14 @@ class FetchPageTask(Task):
                 links.append(print_form_url)
 
             logger.info(f"Найдено ссылок: {len(links)}")
+
+            # Для каждой ссылки создаём задачу на парсинг XML
+            for link in links:
+                chain(
+                    ParseXmlTask().s(link),  # Задача парсинга XML
+                    print_result.s(link)  # Callback-функция для вывода результата
+                ).apply_async()
+
             return links
         except Exception as e:
             logger.error(f"Ошибка в fetch_page_task: {e}")
