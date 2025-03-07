@@ -3,8 +3,17 @@ import requests
 from bs4 import BeautifulSoup
 import xmltodict
 import logging
+from celery import shared_task
 
 logger = logging.getLogger(__name__)
+
+
+@shared_task
+def print_result(publish_dt, print_form_url):
+    """
+    Callback-функция для вывода результата в консоль.
+    """
+    logger.info(f'Ссылка на печатную форму "{print_form_url}" - дата "{publish_dt}"')
 
 
 def find_publish_dt(data):

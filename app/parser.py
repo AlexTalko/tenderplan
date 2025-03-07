@@ -1,6 +1,6 @@
 from app.config import app
-from app.tasks import FetchPageTask, ParseXmlTask
-from celery import group
+from app.tasks import FetchPageTask, ParseXmlTask, print_result
+from celery import group, chain
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -14,7 +14,7 @@ def main():
     fetch_task = FetchPageTask()
     parse_task = ParseXmlTask()
 
-    # Создаём группу задач для параллельного выполнения
+    # Создаём группу задач для параллельного выполнения поиска печатных форм
     fetch_tasks = group(fetch_task.s(base_url + str(page)) for page in pages)
     fetch_results = fetch_tasks.apply_async().join()  # Запускаем и ждём завершения
 
@@ -23,14 +23,15 @@ def main():
             logger.info("Ссылки не найдены. Пропуск страницы.")
             continue
 
-        # Создаём группу задач для парсинга XML
-        parse_tasks = group(parse_task.s(link) for link in links)
-        parse_results = parse_tasks.apply_async().join()  # Запускаем и ждём завершения
-
-        for print_form_url, publish_dt in zip(links, parse_results):
-            # Выводим результат в формате "ссылка на печатную форму <print_form_url> - дата <publish_dt>"
-            print(f'ссылка на печатную форму "{print_form_url}" - дата "{publish_dt}"')
+        # Для каждой ссылки создаём цепочку задач: парсинг XML -> вывод результата
+        for link in links:
+            # Создаём цепочку задач: parse_task -> print_result
+            chain(
+                parse_task.s(link),  # Задача парсинга XML
+                print_result.s(link)  # Callback-функция для вывода результата
+            ).apply_async()
 
 if __name__ == "__main__":
+    logger.info("Запуск парсера")
     with app.connection():
         main()
