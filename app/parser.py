@@ -4,18 +4,27 @@ from celery import group
 import logging
 import time
 import redis
-import json  # Добавляем модуль json
+import json
+from dotenv import load_dotenv  # Импортируем load_dotenv
+import os  # Импортируем os для работы с переменными окружения
+
+# Загружаем переменные окружения из файла .env
+load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Подключение к Redis
-redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
+# Подключение к Redis с использованием переменных из .env
+redis_client = redis.StrictRedis(
+    host=os.getenv('REDIS_HOST'),
+    port=int(os.getenv('REDIS_PORT')),
+    db=int(os.getenv('REDIS_DB'))
+)
 
 
 def main():
     base_url = "https://zakupki.gov.ru/epz/order/extendedsearch/results.html?fz44=on&pageNumber="
-    pages = [1, 2]  # Номера страниц для парсинга
+    pages = [1, 2, 3, 4, 5, 6, 7, 8, 9]  # Номера страниц для парсинга
 
     # Регистрация задачи
     fetch_task = FetchPageTask()
