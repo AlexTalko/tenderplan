@@ -6,6 +6,26 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
+def find_publish_dt(data):
+    """
+    Рекурсивно ищет ключ 'publishDTInEIS' в словаре.
+    """
+    if isinstance(data, dict):
+        for key, value in data.items():
+            if key == "publishDTInEIS":
+                return value
+            result = find_publish_dt(value)
+            if result is not None:
+                return result
+    elif isinstance(data, list):
+        for item in data:
+            result = find_publish_dt(item)
+            if result is not None:
+                return result
+    return None
+
+
 class FetchPageTask(Task):
     name = "fetch_page_task"
 
@@ -66,9 +86,18 @@ class ParseXmlTask(Task):
 
             response.raise_for_status()
 
-            # Парсим XML и извлекаем дату публикации
+            # Парсим XML в словарь
             xml_dict = xmltodict.parse(response.content)
-            publish_dt = xml_dict.get("ns2:notice", {}).get("commonInfo", {}).get("publishDTInEIS")
+            logger.debug(f"Содержимое XML: {xml_dict}")  # Логируем содержимое XML для отладки
+
+            # Рекурсивно ищем ключ 'publishDTInEIS'
+            publish_dt = find_publish_dt(xml_dict, 'publishDTInEIS')
+
+            if publish_dt:
+                logger.info(f"Найдено значение publishDTInEIS: {publish_dt}")
+            else:
+                logger.warning(f"Ключ publishDTInEIS не найден в XML: {xml_url}")
+
             return publish_dt
         except Exception as e:
             logger.error(f"Ошибка в parse_xml_task: {e}")
