@@ -112,6 +112,4 @@
 
 Email: [talko.alexander@gmail.com](mailto:email)
 
-Телефон: +79991712335
-
 Telegram: [t.me/Alextalko](https://t.me/Alextalko)
