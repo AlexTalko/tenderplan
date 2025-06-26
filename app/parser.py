@@ -1,20 +1,19 @@
+import logging
+import redis
 from app.config import app
 from app.tasks import FetchPageTask
 from celery import group
-import logging
-import time
-import redis
-import json
-from dotenv import load_dotenv  # Импортируем load_dotenv
-import os  # Импортируем os для работы с переменными окружения
+from dotenv import load_dotenv
+import os
 
-# Загружаем переменные окружения из файла .env
-load_dotenv()
-
+# Настройка логирования
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Подключение к Redis с использованием переменных из .env
+# Загружаем переменные окружения
+load_dotenv()
+
+# Подключение к Redis
 redis_client = redis.StrictRedis(
     host=os.getenv('REDIS_HOST'),
     port=int(os.getenv('REDIS_PORT')),
@@ -22,40 +21,74 @@ redis_client = redis.StrictRedis(
 )
 
 
+def get_pages_from_user():
+    """
+    Запрашивает у пользователя диапазон или список страниц для парсинга.
+    Возвращает список номеров страниц.
+    """
+    while True:
+        mode = input("Выберите режим ввода страниц (1 - диапазон, 2 - список номеров): ").strip()
+        if mode not in ['1', '2']:
+            logger.error("Некорректный выбор режима. Введите 1 или 2.")
+            continue
+
+        if mode == '1':
+            # Ввод диапазона страниц (например, 1-10)
+            range_input = input("Введите диапазон страниц (например, 1-10): ").strip()
+            try:
+                start, end = map(int, range_input.split('-'))
+                if start <= 0 or end < start:
+                    logger.error("Начальная страница должна быть положительной и меньше или равна конечной.")
+                    continue
+                return list(range(start, end + 1))
+            except ValueError:
+                logger.error("Некорректный формат диапазона. Введите в формате 'начало-конец', например, 1-10.")
+                continue
+
+        else:
+            # Ввод списка страниц (например, 1,3,5)
+            pages_input = input("Введите номера страниц через запятую (например, 1,3,5): ").strip()
+            try:
+                pages = [int(page.strip()) for page in pages_input.split(',')]
+                if not pages or any(page <= 0 for page in pages):
+                    logger.error("Все номера страниц должны быть положительными числами.")
+                    continue
+                return pages
+            except ValueError:
+                logger.error("Некорректный формат списка. Введите номера страниц через запятую, например, 1,3,5.")
+                continue
+
+
 def main():
     base_url = "https://zakupki.gov.ru/epz/order/extendedsearch/results.html?fz44=on&pageNumber="
-    pages = [1, 2, 3, 4, 5, 6, 7, 8, 9]  # Номера страниц для парсинга
+
+    # Запрашиваем страницы у пользователя
+    pages = get_pages_from_user()
+    logger.info(f"Выбраны страницы для парсинга: {pages}")
 
     # Регистрация задачи
     fetch_task = FetchPageTask()
 
-    # Создаём группу задач для параллельного выполнения поиска печатных форм
-    fetch_tasks = group(fetch_task.s(base_url + str(page)) for page in pages)
-    fetch_tasks.apply_async()  # Запускаем задачи параллельно
-
     try:
-        # Ожидаем завершения задач и выводим промежуточные результаты
-        while True:
-            time.sleep(1)  # Проверяем результаты каждую секунду
+        # Создаём группу задач
+        fetch_tasks = group(fetch_task.s(base_url + str(page)) for page in pages)
+        result = fetch_tasks.apply_async(expires=300)  # Запускаем задачи с таймаутом 5 минут
 
-            # Получаем все ключи из Redis
-            keys = redis_client.keys('celery-task-meta-*')
-            for key in keys:
-                result = redis_client.get(key)
-                if result:
-                    try:
-                        # Преобразуем строку в словарь с помощью json
-                        result_data = json.loads(result.decode('utf-8'))
-                        if result_data.get('status') == 'SUCCESS':
-                            logger.info(result_data['result'])  # Выводим результат
-                            redis_client.delete(key)  # Удаляем результат из Redis
-                    except json.JSONDecodeError as e:
-                        logger.error(f"Ошибка декодирования JSON: {e}")
-                    except Exception as e:
-                        logger.error(f"Ошибка при обработке результата: {e}")
+        # Ожидаем завершения всех задач
+        for task in result:
+            try:
+                task.wait(timeout=300)  # Таймаут на задачу
+                if not task.successful():
+                    logger.error(f"Задача {task.id} завершилась с ошибкой: {task.get(propagate=False)}")
+            except Exception as e:
+                logger.error(f"Ошибка при ожидании задачи {task.id}: {e}")
 
+    except redis.RedisError as e:
+        logger.error(f"Ошибка подключения к Redis: {e}")
     except KeyboardInterrupt:
         logger.info("Парсер остановлен пользователем.")
+    except Exception as e:
+        logger.error(f"Общая ошибка: {e}")
     finally:
         logger.info("Завершение работы парсера.")
 
