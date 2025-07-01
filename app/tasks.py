@@ -1,11 +1,11 @@
-from celery import Task, shared_task
-import requests
-from bs4 import BeautifulSoup
-import xmltodict
 import logging
-from celery import chain
 from datetime import datetime
+
 import pytz
+import requests
+import xmltodict
+from bs4 import BeautifulSoup
+from celery import Task, chain, shared_task
 
 # Настройка логгера
 logger = logging.getLogger(__name__)
@@ -14,11 +14,11 @@ logger = logging.getLogger(__name__)
 # Фильтр для исключения логов Celery
 class NoCeleryFilter(logging.Filter):
     def filter(self, record):
-        return not record.name.startswith('celery')
+        return not record.name.startswith("celery")
 
 
 # Настраиваем логирование, чтобы отображались только нужные сообщения
-logging.getLogger('celery').setLevel(logging.WARNING)  # Понижаем уровень логов Celery
+logging.getLogger("celery").setLevel(logging.WARNING)  # Понижаем уровень логов Celery
 logger.addFilter(NoCeleryFilter())  # Добавляем фильтр для исключения логов Celery
 
 # Заголовки HTTP-запросов
@@ -40,10 +40,10 @@ def print_result(publish_dt, print_form_url):
     """
     try:
         # Парсим дату ISO и преобразуем в московский часовой пояс
-        dt = datetime.fromisoformat(publish_dt.replace('Z', '+00:00'))
-        msk_tz = pytz.timezone('Europe/Moscow')
+        dt = datetime.fromisoformat(publish_dt.replace("Z", "+00:00"))
+        msk_tz = pytz.timezone("Europe/Moscow")
         dt_msk = dt.astimezone(msk_tz)
-        formatted_dt = dt_msk.strftime('%d-%m-%Y %H:%M:%S МСК')
+        formatted_dt = dt_msk.strftime("%d-%m-%Y %H:%M:%S МСК")
         logger.info(f"{formatted_dt} - {print_form_url}")
         return f"{formatted_dt} - {print_form_url}"
     except ValueError as e:
@@ -82,22 +82,28 @@ class FetchPageTask(Task):
             # Парсим HTML и извлекаем ссылки на печатные формы тендеров
             soup = BeautifulSoup(response.text, "html.parser")
             links = []
-            for a in soup.select("a[href*='/epz/order/notice/ea20/view/common-info.html']"):
+            for a in soup.select(
+                "a[href*='/epz/order/notice/ea20/view/common-info.html']"
+            ):
                 tender_url = "https://zakupki.gov.ru" + a["href"]
-                print_form_url = tender_url.replace("/ea20/view/common-info.html", "/printForm/view.html")
+                print_form_url = tender_url.replace(
+                    "/ea20/view/common-info.html", "/printForm/view.html"
+                )
                 links.append(print_form_url)
 
             # Для каждой ссылки создаём задачу на парсинг XML
             for link in links:
                 chain(
                     ParseXmlTask().s(link),  # Задача парсинга XML
-                    print_result.s(link)  # Callback-функция для вывода результата
+                    print_result.s(link),  # Callback-функция для вывода результата
                 ).apply_async()
 
             return links
         except Exception as e:
             logger.error(f"Ошибка в fetch_page_task: {e}")
-            self.retry(exc=e, countdown=10, max_retries=3)  # Повторная попытка в случае ошибки
+            self.retry(
+                exc=e, countdown=10, max_retries=3
+            )  # Повторная попытка в случае ошибки
 
 
 class ParseXmlTask(Task):
@@ -129,4 +135,6 @@ class ParseXmlTask(Task):
             return publish_dt
         except Exception as e:
             logger.error(f"Ошибка в parse_xml_task: {e}")
-            self.retry(exc=e, countdown=10, max_retries=3)  # Повторная попытка в случае ошибки
+            self.retry(
+                exc=e, countdown=10, max_retries=3
+            )  # Повторная попытка в случае ошибки

@@ -1,4 +1,5 @@
 import pytest
+
 from app.config import app
 from app.tasks import FetchPageTask, ParseXmlTask
 
